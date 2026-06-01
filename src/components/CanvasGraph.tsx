@@ -1,6 +1,6 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { IskraNode, IskraEdge } from '../types';
-import { PlusCircle, Trash2, Link, Unlink } from 'lucide-react';
+import { PlusCircle, Trash2, Link, Unlink, Sparkles } from 'lucide-react';
 
 interface CanvasGraphProps {
   nodes: IskraNode[];
@@ -28,6 +28,13 @@ const TYPE_COLORS: Record<string, { border: string, bg: string, text: string, te
   MemoryNode: { border: 'border-indigo-500/80', bg: 'bg-indigo-950/20', text: 'text-indigo-400', textBadge: 'bg-indigo-500/10 text-indigo-400 border-indigo-500/35' },
   WhatIf: { border: 'border-violet-500/80', bg: 'bg-violet-950/20', text: 'text-violet-400', textBadge: 'bg-violet-500/10 text-violet-400 border-violet-500/35' },
   ReleaseGate: { border: 'border-pink-500/80', bg: 'bg-pink-950/20', text: 'text-pink-400', textBadge: 'bg-pink-500/10 text-pink-400 border-pink-500/35' },
+  Package: { border: 'border-fuchsia-600/80', bg: 'bg-fuchsia-950/20', text: 'text-fuchsia-400', textBadge: 'bg-fuchsia-500/10 text-fuchsia-400 border-fuchsia-500/35' },
+  App: { border: 'border-cyan-500/80', bg: 'bg-cyan-950/20', text: 'text-cyan-400', textBadge: 'bg-cyan-500/10 text-cyan-400 border-cyan-500/35' },
+  Runtime: { border: 'border-blue-500/80', bg: 'bg-blue-950/20', text: 'text-blue-400', textBadge: 'bg-blue-500/10 text-blue-400 border-blue-500/35' },
+  Task: { border: 'border-yellow-500/80', bg: 'bg-yellow-950/20', text: 'text-yellow-400', textBadge: 'bg-yellow-500/10 text-yellow-500/30' },
+  Decision: { border: 'border-indigo-500/80', bg: 'bg-indigo-950/20', text: 'text-indigo-400', textBadge: 'bg-indigo-500/10 text-indigo-400 border-indigo-500/35' },
+  Evidence: { border: 'border-emerald-500/80', bg: 'bg-emerald-950/20', text: 'text-emerald-400', textBadge: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/35' },
+  UnknownGap: { border: 'border-red-500/80 border-dashed', bg: 'bg-red-950/20', text: 'text-red-400', textBadge: 'bg-red-500/10 text-red-400 border-red-550/35 border-dashed' },
 };
 
 export default function CanvasGraph({
@@ -47,6 +54,7 @@ export default function CanvasGraph({
 
   // Adding edge creation state
   const [linkSourceId, setLinkSourceId] = useState<string | null>(null);
+  const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
 
   const handleNodeMouseDown = (e: React.MouseEvent, nodeId: string) => {
     e.stopPropagation();
@@ -66,10 +74,19 @@ export default function CanvasGraph({
   };
 
   const handleCanvasMouseMove = (e: React.MouseEvent) => {
-    if (!draggedNodeId || !canvasRef.current) return;
+    if (!canvasRef.current) return;
     const rect = canvasRef.current.getBoundingClientRect();
-    const newX = Math.round(e.clientX - rect.left - offset.x);
-    const newY = Math.round(e.clientY - rect.top - offset.y);
+    const currX = Math.round(e.clientX - rect.left);
+    const currY = Math.round(e.clientY - rect.top);
+
+    if (linkSourceId) {
+      setMousePos({ x: currX, y: currY });
+    }
+
+    if (!draggedNodeId) return;
+
+    const newX = currX - offset.x;
+    const newY = currY - offset.y;
 
     // Bound coordinates
     const boundedX = Math.max(20, Math.min(rect.width - 210, newX));
@@ -131,12 +148,66 @@ export default function CanvasGraph({
     if (linkSourceId === nodeId) {
       setLinkSourceId(null);
     } else if (linkSourceId === null) {
+      if (canvasRef.current) {
+        const rect = canvasRef.current.getBoundingClientRect();
+        setMousePos({
+          x: e.clientX - rect.left,
+          y: e.clientY - rect.top
+        });
+      }
       setLinkSourceId(nodeId);
     } else {
       // Connect
       onAddEdge(linkSourceId, nodeId);
       setLinkSourceId(null);
     }
+  };
+
+  const triggerAutoLayout = () => {
+    // Architectural ranks for vertical layered alignment
+    const ranks: Record<string, number> = {
+      Package: 0,
+      App: 0,
+      Runtime: 1,
+      RuntimeModule: 1,
+      SupabaseTable: 2,
+      Evidence: 3,
+      MemoryNode: 3,
+      Voice: 4,
+      Metric: 4,
+      Decision: 5,
+      Task: 5,
+      WhatIf: 5,
+      Risk: 6,
+      ReleaseGate: 6,
+      UnknownGap: 6
+    };
+
+    // Group nodes by structured rank
+    const grouped: Record<number, IskraNode[]> = {};
+    nodes.forEach(node => {
+      const r = ranks[node.type] !== undefined ? ranks[node.type] : 2; // Default to mid-rank
+      if (!grouped[r]) grouped[r] = [];
+      grouped[r].push(node);
+    });
+
+    const width = canvasRef.current ? canvasRef.current.clientWidth : 950;
+
+    // Apply auto-positioning for each rank layer
+    Object.keys(grouped).forEach(rankStr => {
+      const rankNum = Number(rankStr);
+      const rankNodes = grouped[rankNum];
+      const y = 35 + rankNum * 115; // Vertical spacing layers: 35, 150, 265, 380, 495, 610, 725
+      
+      const count = rankNodes.length;
+      const cardWidth = 210; // Exact card width + padding stride
+      const startX = (width - (count * cardWidth)) / 2 + 5;
+
+      rankNodes.forEach((node, idx) => {
+        const x = Math.max(15, Math.round(startX + idx * cardWidth));
+        onUpdateNodeCoordinates(node.id, x, y);
+      });
+    });
   };
 
   return (
@@ -148,7 +219,7 @@ export default function CanvasGraph({
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
             Iskra Canon Space (Canvas Mode)
           </h2>
-          <span className="text-[10px] text-slate-500 font-sans">Double click empty space to deploy customized Node</span>
+          <span className="text-[10px] text-slate-500 font-sans font-medium">Double click empty space to deploy customized Node</span>
         </div>
 
         <div className="flex gap-2 items-center">
@@ -157,6 +228,13 @@ export default function CanvasGraph({
               Selecting target to link with...
             </span>
           )}
+          <button
+            onClick={triggerAutoLayout}
+            className="flex items-center gap-1.5 bg-indigo-950/40 hover:bg-indigo-900/50 border border-indigo-500/30 px-2.5 py-1 rounded text-[10px] font-mono text-indigo-400 font-semibold cursor-pointer transition-colors"
+            title="Auto-arrange and vertically align nodes based on logical hierarchy"
+          >
+            <Sparkles className="w-3.5 h-3.5 text-indigo-400" /> Auto-Align
+          </button>
           <button
             onClick={() => onAddNode({
               title: "What-If Scenario Node",
@@ -191,6 +269,25 @@ export default function CanvasGraph({
               <path d="M 0 0 L 10 5 L 0 10 z" fill="#475569" />
             </marker>
           </defs>
+
+          {linkSourceId && (() => {
+            const sourceNode = nodes.find(n => n.id === linkSourceId);
+            if (!sourceNode) return null;
+            const sX = sourceNode.x + 100;
+            const sY = sourceNode.y + 45;
+            return (
+              <line
+                x1={sX}
+                y1={sY}
+                x2={mousePos.x}
+                y2={mousePos.y}
+                stroke="#f59e0b"
+                strokeWidth="1.5"
+                strokeDasharray="4 4"
+                className="animate-pulse"
+              />
+            );
+          })()}
 
           {edges.map((edge) => {
             const { path, midX, midY } = calculateEdgePath(edge.source, edge.target);

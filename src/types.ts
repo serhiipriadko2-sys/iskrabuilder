@@ -1,6 +1,6 @@
 export interface IskraNode {
   id: string;
-  type: 'Canon' | 'RuntimeModule' | 'SupabaseTable' | 'GitHubFile' | 'ADR' | 'Test' | 'Risk' | 'OpenLoop' | 'Metric' | 'Voice' | 'MemoryNode' | 'WhatIf' | 'ReleaseGate';
+  type: 'Canon' | 'Package' | 'App' | 'Runtime' | 'SupabaseTable' | 'Metric' | 'Voice' | 'Task' | 'Risk' | 'Decision' | 'Evidence' | 'UnknownGap' | 'RuntimeModule' | 'GitHubFile' | 'ADR' | 'Test' | 'OpenLoop' | 'MemoryNode' | 'WhatIf' | 'ReleaseGate';
   title: string;
   description: string;
   evidence: string;
