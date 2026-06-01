@@ -1,0 +1,6 @@
+{
+  "name": "Iskra Builder",
+  "description": "Инженерный контур Искры vΩ.7. Полнофункциональная панель управления каноном: Canvas, SLO-GUARD, Quantum Field голосов, Ledger транзакций и контроль drift.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
